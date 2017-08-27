@@ -9,9 +9,14 @@ def get_batch(limit, size):
     idx = np.random.random_integers(limit - 1, size=(size))
     return idx
 
+#HYPERPARAMETERS:
+batch_size = 32
+learning_rate = 1e-2
+reg_rate = 1e-5
+
 pkl_file = gzip.open('./dataset/data.pkl', 'rb')
 data = pkl.load(pkl_file)
-model_name = "27aug1745"
+model_name = "27aug2140"
 train = data["train"]
 test = data["test"]
 
@@ -53,11 +58,6 @@ deps_test = np.array(test[1])
 labels_c_test = np.array(test[2])
 labels_f_test = np.array(test[3])
 labels_b_test = np.array(test[4])
-
-#HYPERPARAMETERS:
-batch_size = 32
-learning_rate = 5e-1
-reg_rate = 5e-5
 
 max_sentence_length = 13
 word_vec_length = 300
