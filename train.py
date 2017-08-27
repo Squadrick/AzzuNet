@@ -10,13 +10,13 @@ def get_batch(limit, size):
     return idx
 
 #HYPERPARAMETERS:
-batch_size = 32
+batch_size = 16
 learning_rate = 1e-2
 reg_rate = 1e-5
 
 pkl_file = gzip.open('./dataset/data.pkl', 'rb')
 data = pkl.load(pkl_file)
-model_name = "28aug0037"
+model_name = "28aug0049"
 train = data["train"]
 test = data["test"]
 
@@ -102,22 +102,22 @@ for i in range(epochs):
         
         ops = [model.acc_c, model.total_loss, model.summary, model.train_step]
         train_acc, train_loss, summary, _ = sess.run(ops, feed_dict)
-        print("Step:", j, "\tAccuracy:", train_acc, "\tLoss:", train_loss)
+#        print("Step:", j, "\tAccuracy:", train_acc, "\tLoss:", train_loss)
         m_loss += train_loss
         m_acc += train_acc
         train_writer.add_summary(summary, (i*steps_per_epoch + j))
 
     m_loss /= steps_per_epoch
     m_acc /= steps_per_epoch
-    
-    feed_dict = {model.words: words_val,
-                 model.deps: deps_val,
+    idx = get_batch(val_length, 250)    
+    feed_dict = {model.words: words_val[idx],
+                 model.deps: deps_val[idx],
                  model.lr: learning_rate,
                  model.reg: reg_rate,
                  model.prob: 1.0,
-                 model.l_c: labels_c_val,
-                 model.l_f: labels_f_val,
-                 model.l_b: labels_b_val}
+                 model.l_c: labels_c_val[idx],
+                 model.l_f: labels_f_val[idx],
+                 model.l_b: labels_b_val[idx]}
 
     ops = [model.acc_c, model.total_loss, model.summary]
     val_acc, val_loss, summary = sess.run(ops, feed_dict)
@@ -145,7 +145,7 @@ for i in range(epochs):
 
         ops = [model.acc_c, model.total_loss, model.summary]
         test_acc, test_loss, summary = sess.run(ops, feed_dict)
-	test_writer.add_summary(summary, i/100)
+        test_writer.add_summary(summary, i/100)
         print("Test accuracy:", test_acc, "\nTest loss:", test_loss,"\n")
 
         saver.save(sess, "./models/%s/new_final%d"%(model_name,i))
