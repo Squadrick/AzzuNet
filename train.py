@@ -11,7 +11,7 @@ def get_batch(limit, size):
 
 pkl_file = gzip.open('./dataset/data.pkl', 'rb')
 data = pkl.load(pkl_file)
-model_name = "27aug1715"
+model_name = "27aug1745"
 train = data["train"]
 test = data["test"]
 
@@ -72,12 +72,12 @@ config = tf.ConfigProto(allow_soft_placement = True)
 sess = tf.Session(config = config)
 
 sess.run(tf.global_variables_initializer())
-saver = tf.train.Saver(max_to_keep=100)
+saver = tf.train.Saver(max_to_keep=1000)
 
 print("Learning rate:",learning_rate)
 print("Reg rate:", reg_rate)
-train_writer = tf.summary.FileWriter('./%s/lr%f,reg%f'%(model_name,learning_rate,reg_rate), sess.graph)
-val_writer = tf.summary.FileWriter('./%s_val/lr:%f,reg:%f'%(model_name,learning_rate, reg_rate), sess.graph)
+train_writer = tf.summary.FileWriter('./stats/%s/train/lr:%f,reg:%f'%(model_name,learning_rate,reg_rate), sess.graph)
+val_writer = tf.summary.FileWriter('./stats/%s/val/lr:%f,reg:%f'%(model_name,learning_rate, reg_rate), sess.graph)
 
 for i in range(epochs):
     print("Epoch",i)
@@ -101,7 +101,7 @@ for i in range(epochs):
         
         ops = [model.acc_c, model.total_loss, model.summary, model.train_step]
         train_acc, train_loss, summary, _ = sess.run(ops, feed_dict)
-        #print("Step:", j, "\tAccuracy:", train_acc, "\tLoss:", train_loss)
+        print("Step:", j, "\tAccuracy:", train_acc, "\tLoss:", train_loss)
         m_loss += train_loss
         m_acc += train_acc
         train_writer.add_summary(summary, (i*steps_per_epoch + j))
@@ -109,20 +109,14 @@ for i in range(epochs):
     m_loss /= steps_per_epoch
     m_acc /= steps_per_epoch
     
-    idx = get_batch(val_length, val_length)
-    words = words_val[idx]
-    deps = deps_val[idx]
-    labels_combined = labels_c_val[idx]
-    labels_forward = labels_f_val[idx]
-    labels_backward = labels_b_val[idx]
-    feed_dict = {model.words: words,
-                 model.deps: deps,
+    feed_dict = {model.words: words_val,
+                 model.deps: deps_val,
                  model.lr: learning_rate,
                  model.reg: reg_rate,
                  model.prob: 1.0,
-                 model.l_c: labels_combined,
-                 model.l_f: labels_forward,
-                 model.l_b: labels_backward}
+                 model.l_c: labels_c_val,
+                 model.l_f: labels_f_val,
+                 model.l_b: labels_b_val}
 
     ops = [model.acc_c, model.total_loss, model.summary]
     val_acc, val_loss, summary = sess.run(ops, feed_dict)
@@ -150,6 +144,6 @@ for i in range(epochs):
 
         ops = [model.acc_c, model.total_loss]
         test_acc, test_loss = sess.run(ops, feed_dict)
-        print("Test accuracy:", val_acc, "\nTest loss:", val_loss,"\n")
+        print("Test accuracy:", test_acc, "\nTest loss:", test_loss,"\n")
 
         saver.save(sess, "./models/%s/new_final%d"%(model_name,i))

@@ -13,8 +13,8 @@ def transform(back):
         back[x] = back[x+1]
         back[x+1] = temp
 
-model_name = "AzzuNetCheckout-520"
-pkl_file = gzip.open('./data.pkl', 'rb')
+model_name = "27aug1745/NewAzzuNet-8.803449"
+pkl_file = gzip.open('./dataset/data.pkl', 'rb')
 data = pkl.load(pkl_file)
 
 test = data["test"]
