@@ -1,4 +1,4 @@
-from model import AzzuNet
+from model_new import AzzuNet
 import tensorflow as tf
 import numpy as np
 import _pickle as pkl
@@ -9,13 +9,13 @@ def get_batch(limit, size):
     idx = np.random.random_integers(limit - 1, size=(size))
     return idx
 
-pkl_file = gzip.open('./data.pkl', 'rb')
+pkl_file = gzip.open('./dataset/data.pkl', 'rb')
 data = pkl.load(pkl_file)
-
+model_name = "27aug1715"
 train = data["train"]
 test = data["test"]
 
-train_limit = 6500
+train_limit = 7000
 val_limit = 7950
 test_limit= 2704
 
@@ -56,102 +56,100 @@ labels_b_test = np.array(test[4])
 
 #HYPERPARAMETERS:
 batch_size = 32
-learning_rates = [1e-1,5e-2,1e-2]
-reg_rates = [1e-4,1e-5,1e-6]
+learning_rate = 5e-1
+reg_rate = 5e-5
 
 max_sentence_length = 13
 word_vec_length = 300
 deps_vec_length = 50
 steps_per_epoch = int(train_length/batch_size)+1
-epochs = 50
+epochs = 1000
 min_loss = 666
 
-#with tf.device('/gpu:0'):
+model = AzzuNet(max_sentence_length, word_vec_length, deps_vec_length)
 config = tf.ConfigProto(allow_soft_placement = True)
+
 sess = tf.Session(config = config)
 
-saver = tf.train.Saver()
+sess.run(tf.global_variables_initializer())
+saver = tf.train.Saver(max_to_keep=100)
 
-for learning_rate in learning_rates:
-    for reg_rate in reg_rates: 
-        print("Learning rate:",learning_rate)
-        print("Reg rate:", reg_rate)
-        sess = tf.Session(config = config)
-        model = AzzuNet(max_sentence_length, word_vec_length, deps_vec_length)
-        sess.run(tf.global_variables_initializer())
-        train_writer = tf.summary.FileWriter('./logs_lr:%f,reg%f'%(learning_rate,reg_rate), sess.graph)
-        val_writer = tf.summary.FileWriter('./logs_val_lr:%f,reg:%f'%(learning_rate, reg_rate), sess.graph)
-        saver = tf.train.Saver()
-        for i in range(epochs):
-            print("Epoch",i)
-            m_loss = 0 
-            m_acc = 0
-            for j in range(steps_per_epoch):
-                idx = get_batch(train_length, batch_size)
-                words = words_train[idx]
-                deps = deps_train[idx]
-                labels_combined = labels_c_train[idx]
-                labels_forward = labels_f_train[idx]
-                labels_backward = labels_b_train[idx]
-                feed_dict = {model.words: words, 
-                             model.deps: deps, 
-                             model.lr: learning_rate, 
-                             model.reg: reg_rate,
-                             model.prob: 0.5,
-                             model.l_c: labels_combined,
-                             model.l_f: labels_forward,
-                             model.l_b: labels_backward}
-                
-                ops = [model.acc_c, model.total_loss, model.summary, model.train_step]
-                train_acc, train_loss, summary, _ = sess.run(ops, feed_dict)
-                #print("Step:", j, "\tAccuracy:", train_acc, "\tLoss:", train_loss)
-                m_loss += train_loss
-                m_acc += train_acc
-                train_writer.add_summary(summary, (i*steps_per_epoch + j))
+print("Learning rate:",learning_rate)
+print("Reg rate:", reg_rate)
+train_writer = tf.summary.FileWriter('./%s/lr%f,reg%f'%(model_name,learning_rate,reg_rate), sess.graph)
+val_writer = tf.summary.FileWriter('./%s_val/lr:%f,reg:%f'%(model_name,learning_rate, reg_rate), sess.graph)
 
-            m_loss /= steps_per_epoch
-            m_acc /= steps_per_epoch
-            
-            idx = get_batch(val_length, val_length)
-            words = words_val[idx]
-            deps = deps_val[idx]
-            labels_combined = labels_c_val[idx]
-            labels_forward = labels_f_val[idx]
-            labels_backward = labels_b_val[idx]
-            feed_dict = {model.words: words,
-                         model.deps: deps,
-                         model.lr: learning_rate,
-                         model.reg: reg_rate,
-                         model.prob: 1.0,
-                         model.l_c: labels_combined,
-                         model.l_f: labels_forward,
-                         model.l_b: labels_backward}
+for i in range(epochs):
+    print("Epoch",i)
+    m_loss = 0
+    m_acc = 0
+    for j in range(steps_per_epoch):
+        idx = get_batch(train_length, batch_size)
+        words = words_train[idx]
+        deps = deps_train[idx]
+        labels_combined = labels_c_train[idx]
+        labels_forward = labels_f_train[idx]
+        labels_backward = labels_b_train[idx]
+        feed_dict = {model.words: words, 
+                     model.deps: deps, 
+                     model.lr: learning_rate, 
+                     model.reg: reg_rate,
+                     model.prob: 0.6,
+                     model.l_c: labels_combined,
+                     model.l_f: labels_forward,
+                     model.l_b: labels_backward}
+        
+        ops = [model.acc_c, model.total_loss, model.summary, model.train_step]
+        train_acc, train_loss, summary, _ = sess.run(ops, feed_dict)
+        #print("Step:", j, "\tAccuracy:", train_acc, "\tLoss:", train_loss)
+        m_loss += train_loss
+        m_acc += train_acc
+        train_writer.add_summary(summary, (i*steps_per_epoch + j))
 
-            ops = [model.acc_c, model.total_loss, model.summary]
-            val_acc, val_loss, summary = sess.run(ops, feed_dict)
-            val_writer.add_summary(summary, i)
-            print("Training accuracy:", m_acc, "\nTraining loss:", m_loss)
-            print("Validation accuracy:", val_acc, "\nValidation loss:", val_loss)
-  #          if val_loss < min_loss:
-  #              min_loss = val_loss
-  #              print("Saving model...")
-  #              saver.save(sess, "./models/AzzuNet-%f" % min_loss)
+    m_loss /= steps_per_epoch
+    m_acc /= steps_per_epoch
+    
+    idx = get_batch(val_length, val_length)
+    words = words_val[idx]
+    deps = deps_val[idx]
+    labels_combined = labels_c_val[idx]
+    labels_forward = labels_f_val[idx]
+    labels_backward = labels_b_val[idx]
+    feed_dict = {model.words: words,
+                 model.deps: deps,
+                 model.lr: learning_rate,
+                 model.reg: reg_rate,
+                 model.prob: 1.0,
+                 model.l_c: labels_combined,
+                 model.l_f: labels_forward,
+                 model.l_b: labels_backward}
 
- #           if i%20 == 0:
- #               print("Checkpoint...")
- #               saver.save(sess, "./models/AzzuNetCheckout-%d"%i)
+    ops = [model.acc_c, model.total_loss, model.summary]
+    val_acc, val_loss, summary = sess.run(ops, feed_dict)
+    val_writer.add_summary(summary, i)
+    print("Training accuracy:", m_acc, "\nTraining loss:", m_loss)
+    print("Validation accuracy:", val_acc, "\nValidation loss:", val_loss)
+    if val_loss < min_loss:
+        min_loss = val_loss
+        print("Saving model...")
+        saver.save(sess, "./models/%s/NewAzzuNet-%f" % (model_name,min_loss))
 
+    if i%20 == 0:
+        print("Checkpoint...")
+        saver.save(sess, "./models/%s/AzzuNetCheckout-%d"%(model_name,i))
+
+    if i%100 == 0:
         feed_dict = {model.words: words_test,
-                         model.deps: deps_test,
-                         model.lr: learning_rate,
-                         model.reg: reg_rate,
-                         model.prob: 1.0,
-                         model.l_c: labels_c_test,
-                         model.l_f: labels_f_test,
-                         model.l_b: labels_b_test}
+                 model.deps: deps_test,
+                 model.lr: learning_rate,
+                 model.reg: reg_rate,
+                 model.prob: 1.0,
+                 model.l_c: labels_c_test,
+                 model.l_f: labels_f_test,
+                 model.l_b: labels_b_test}
 
         ops = [model.acc_c, model.total_loss]
         test_acc, test_loss = sess.run(ops, feed_dict)
         print("Test accuracy:", val_acc, "\nTest loss:", val_loss,"\n")
 
-#        saver.save(sess, "./models/final")
+        saver.save(sess, "./models/%s/new_final%d"%(model_name,i))
