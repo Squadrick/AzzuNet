@@ -16,7 +16,7 @@ reg_rate = 1e-5
 
 pkl_file = gzip.open('./dataset/data.pkl', 'rb')
 data = pkl.load(pkl_file)
-model_name = "27aug2140"
+model_name = "28aug0037"
 train = data["train"]
 test = data["test"]
 
@@ -63,7 +63,7 @@ max_sentence_length = 13
 word_vec_length = 300
 deps_vec_length = 50
 steps_per_epoch = int(train_length/batch_size)+1
-epochs = 1000
+epochs = 2500
 min_loss = 666
 
 model = AzzuNet(max_sentence_length, word_vec_length, deps_vec_length)
@@ -78,6 +78,7 @@ print("Learning rate:",learning_rate)
 print("Reg rate:", reg_rate)
 train_writer = tf.summary.FileWriter('./stats/%s/train/lr:%f,reg:%f'%(model_name,learning_rate,reg_rate), sess.graph)
 val_writer = tf.summary.FileWriter('./stats/%s/val/lr:%f,reg:%f'%(model_name,learning_rate, reg_rate), sess.graph)
+test_writer = tf.summary.FileWriter('./stats/%s/test/lr:%f,reg:%f'%(model_name,learning_rate, reg_rate), sess.graph)
 
 for i in range(epochs):
     print("Epoch",i)
@@ -94,7 +95,7 @@ for i in range(epochs):
                      model.deps: deps, 
                      model.lr: learning_rate, 
                      model.reg: reg_rate,
-                     model.prob: 0.6,
+                     model.prob: 1.0,
                      model.l_c: labels_combined,
                      model.l_f: labels_forward,
                      model.l_b: labels_backward}
@@ -142,8 +143,9 @@ for i in range(epochs):
                  model.l_f: labels_f_test,
                  model.l_b: labels_b_test}
 
-        ops = [model.acc_c, model.total_loss]
-        test_acc, test_loss = sess.run(ops, feed_dict)
+        ops = [model.acc_c, model.total_loss, model.summary]
+        test_acc, test_loss, summary = sess.run(ops, feed_dict)
+	test_writer.add_summary(summary, i/100)
         print("Test accuracy:", test_acc, "\nTest loss:", test_loss,"\n")
 
         saver.save(sess, "./models/%s/new_final%d"%(model_name,i))
