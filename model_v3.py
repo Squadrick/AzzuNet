@@ -16,7 +16,10 @@ class AzzuNet:
             word_start = tf.gather(word, np.arange(length), name = "words_start")
             word_end = tf.gather(word, np.arange(1, length + 1), name = "words_end")
             d_units = tf.concat([word_start, deps, word_end], axis = 2, name = "d_units")
-            local_features = tf.map_fn(lambda x: self.convolution(x, w, b), d_units, dtype = tf.float32)
+            w = tf.concat([w for x in range(0,length)], axis=2)
+            print(w)
+            xw = tf.nn.conv1d(d_units, w, stride = 1, padding="VALID")
+            local_features = tf.tanh(tf.add(xw, b))
             local_features = tf.transpose(local_features, perm = [1, 0, 2])
         return local_features
 
